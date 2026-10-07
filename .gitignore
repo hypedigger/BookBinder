@@ -1,0 +1,14 @@
+# environnement & caches
+.venv/
+__pycache__/
+*.pyc
+
+# etat local de l'application (preferences utilisateur)
+settings.json
+
+# icone generee par install_shortcut.py
+fusion_images.ico
+
+# outils locaux
+.claude/
+*.lnk

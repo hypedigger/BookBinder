@@ -1,0 +1,5 @@
+PyQt6
+Pillow
+keyboard
+pywin32
+send2trash

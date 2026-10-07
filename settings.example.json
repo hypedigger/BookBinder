@@ -1,0 +1,9 @@
+{
+  "format": "JPEG",
+  "quality": 95,
+  "trim_border": true,
+  "suffix": "_join",
+  "delete_sources": false,
+  "hotkey_merge": "ctrl+shift+d",
+  "hotkey_merge_reverse": "ctrl+shift+f"
+}
