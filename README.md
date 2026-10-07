@@ -4,6 +4,8 @@
 
 Scanned comics, manga and graphic novels often split a double-page spread into two separate image files. BookBinder stitches them back together: select the two pages in Explorer, hit a hotkey, done.
 
+![BookBinder](docs/screenshot.png)
+
 ## Features
 
 - **Global hotkeys** — select two images in Windows Explorer, press `Ctrl+Shift+D` to merge (alphabetical order = left page first) or `Ctrl+Shift+F` for reverse order. No need to open the app window.
