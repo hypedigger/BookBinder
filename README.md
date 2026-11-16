@@ -58,6 +58,8 @@ If this tool saved you some tedious image editing, you can support development:
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/hypedigger)
 
+The same link is available in the app's About dialog (ℹ button). BookBinder also shows a small, one-click-dismissible reminder on the 10th launch and then every 100 launches — tick "Ne plus me le demander" (don't ask me again) to turn it off for good. The launch counter lives only in your local `settings.json`; nothing is sent anywhere.
+
 ## License
 
 [MIT](LICENSE)

@@ -5,5 +5,7 @@
   "suffix": "_join",
   "delete_sources": false,
   "hotkey_merge": "ctrl+shift+d",
-  "hotkey_merge_reverse": "ctrl+shift+f"
+  "hotkey_merge_reverse": "ctrl+shift+f",
+  "usage_count": 0,
+  "support_optout": false
 }

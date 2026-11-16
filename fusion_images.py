@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import (
     QPushButton, QLabel, QDialog, QComboBox, QCheckBox, QLineEdit,
     QSlider, QFormLayout, QGroupBox, QKeySequenceEdit,
 )
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRect
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QRect, QUrl
 from PyQt6.QtGui import (
     QFont, QGuiApplication, QIcon, QPixmap, QPainter, QColor,
-    QRadialGradient, QPen, QKeySequence,
+    QRadialGradient, QPen, QKeySequence, QDesktopServices,
 )
 
 try:
@@ -30,8 +30,8 @@ except ImportError:
 
 # ─── Version ─────────────────────────────────────────────────────────────────
 
-VERSION = 5
-CREATED = "17/04/2026 à 19:30"
+VERSION = 6
+CREATED = "16/11/2026 à 15:31"
 APP_TITLE = f"BookBinder — {VERSION} — {CREATED}"
 
 # ─── Settings ────────────────────────────────────────────────────────────────
@@ -46,6 +46,8 @@ DEFAULTS = {
     "delete_sources": False,
     "hotkey_merge": "ctrl+shift+d",
     "hotkey_merge_reverse": "ctrl+shift+f",
+    "usage_count": 0,
+    "support_optout": False,
 }
 
 FORMAT_EXT = {"JPEG": ".jpg", "JPEG2000": ".jp2", "PNG": ".png", "WebP": ".webp"}
@@ -72,6 +74,36 @@ def load_settings():
 def save_settings(s):
     with open(SETTINGS_FILE, "w") as f:
         json.dump(s, f, indent=2)
+
+
+# ─── Soutien (Ko-fi) ─────────────────────────────────────────────────────────
+
+KOFI_URL = "https://ko-fi.com/hypedigger"
+
+
+def open_kofi():
+    QDesktopServices.openUrl(QUrl(KOFI_URL))
+
+
+def bump_usage_count(s) -> int:
+    # Compteur de lancements, stocké avec les autres réglages
+    try:
+        n = int(s.get("usage_count", 0)) + 1
+    except (TypeError, ValueError):
+        n = 1
+    s["usage_count"] = n
+    try:
+        save_settings(s)
+    except Exception:
+        pass
+    return n
+
+
+def should_show_support(n_uses: int, optout: bool) -> bool:
+    # Au 10e lancement, puis tous les 100 — jamais si l'utilisateur a refusé
+    if optout:
+        return False
+    return n_uses == 10 or (n_uses >= 100 and n_uses % 100 == 0)
 
 
 def keyboard_to_qt(ks: str) -> str:
@@ -488,8 +520,17 @@ class InfoDialog(QDialog):
             layout.addWidget(lbl)
 
         btn_row = QHBoxLayout()
+        btn_kofi = QPushButton("☕  Soutenir sur Ko-fi")
+        btn_kofi.setToolTip(KOFI_URL)
+        btn_kofi.setStyleSheet(
+            "QPushButton { background-color: #EDE0F5; color: #8860A8; }"
+            "QPushButton:hover { background-color: #D8C8EC; }"
+        )
+        btn_kofi.clicked.connect(open_kofi)
+        btn_row.addWidget(btn_kofi)
         btn_row.addStretch()
         btn = QPushButton("Fermer")
+        btn.setDefault(True)
         btn.clicked.connect(self.accept)
         btn_row.addWidget(btn)
         layout.addLayout(btn_row)
@@ -660,6 +701,53 @@ class OptionsDialog(QDialog):
     def get_settings(self):
         return self.settings
 
+# ─── Support Dialog ───────────────────────────────────────────────────────────
+
+
+class SupportDialog(QDialog):
+    """Invitation Ko-fi — fermable d'un clic, avec opt-out définitif."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Vous aimez BookBinder ?")
+        self.setModal(True)
+        self.setMinimumWidth(430)
+        self.setStyleSheet(DIALOG_STYLE)
+
+        layout = QVBoxLayout(self)
+        layout.setSpacing(14)
+        layout.setContentsMargins(24, 24, 24, 24)
+
+        title = QLabel("☕  Vous aimez BookBinder ?")
+        title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        title.setStyleSheet("color: #C45C8A;")
+        layout.addWidget(title)
+
+        body = QLabel(
+            "Cette application est gratuite et open source, développée sur "
+            "le temps libre de son créateur.\n\nSi elle vous fait gagner "
+            "du temps, un petit café sur Ko-fi l'aide à continuer — merci !"
+        )
+        body.setFont(QFont("Segoe UI", 10))
+        body.setWordWrap(True)
+        layout.addWidget(body)
+
+        self.check_optout = QCheckBox("Ne plus me le demander")
+        layout.addWidget(self.check_optout)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_later = QPushButton("Plus tard")
+        btn_later.setObjectName("btnCancel")
+        btn_later.clicked.connect(self.reject)
+        btn_kofi = QPushButton("☕  Soutenir sur Ko-fi")
+        btn_kofi.setObjectName("btnSave")
+        btn_kofi.setDefault(True)
+        btn_kofi.clicked.connect(self.accept)
+        btn_row.addWidget(btn_later)
+        btn_row.addWidget(btn_kofi)
+        layout.addLayout(btn_row)
+
 # ─── Styles ──────────────────────────────────────────────────────────────────
 
 
@@ -711,6 +799,11 @@ class MainWindow(QMainWindow):
             self._show_result("pywin32 manquant — pip install pywin32", False)
         if not KEYBOARD_OK:
             self._show_result("keyboard manquant — pip install keyboard", False)
+
+        # Invitation Ko-fi : différée pour ne jamais bloquer le démarrage
+        n_uses = bump_usage_count(self.settings)
+        if should_show_support(n_uses, self.settings.get("support_optout", False)):
+            QTimer.singleShot(2500, self._show_support_popup)
 
     def _build_ui(self):
         central = QWidget()
@@ -800,6 +893,20 @@ class MainWindow(QMainWindow):
 
     def _open_info(self):
         InfoDialog(self.settings, self).exec()
+
+    def _show_support_popup(self):
+        if QApplication.activeModalWidget() is not None:
+            return  # un dialogue est déjà ouvert : on n'empile pas
+        dlg = SupportDialog(self)
+        accepted = dlg.exec() == QDialog.DialogCode.Accepted
+        if dlg.check_optout.isChecked():
+            self.settings["support_optout"] = True
+            try:
+                save_settings(self.settings)
+            except Exception:
+                pass
+        if accepted:
+            open_kofi()
 
     def _on_merge_requested(self, reverse, files):
         if self._progress_toast:
